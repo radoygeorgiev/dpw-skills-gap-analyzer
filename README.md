@@ -18,6 +18,14 @@ Open http://127.0.0.1:5177/.
 - Adjust the self / manager weighting sliders.
 - Disable or remove participants from the left panel.
 - Paste new assessment rows from Excel through **Paste data**.
-- Export the current capability gap table as CSV.
+- Export a shareable Excel report with Executive Summary, Category Summary, Capability Gaps, and Participant Matrix tabs.
+- Export a Word-compatible report with executive summary, category view, priority gaps, and participant detail.
 
 The dashboard uses all available sources. If a participant only has self data, that data is used. If they only have manager data, manager data is used. If both exist, the sliders determine the combined score.
+
+## Current Generated Reports
+
+Generated from the emailed Lawrence and Diego inputs plus manager scores:
+
+- `reports/DPW_Automation_Skills_Gap_Report.xlsx`
+- `reports/DPW_Automation_Skills_Gap_Report.docx`

@@ -17,7 +17,8 @@ const els = {
   evidenceList: document.getElementById("evidenceList"),
   sourceSummary: document.getElementById("sourceSummary"),
   resetBtn: document.getElementById("resetBtn"),
-  exportCsvBtn: document.getElementById("exportCsvBtn"),
+  exportExcelBtn: document.getElementById("exportExcelBtn"),
+  exportWordBtn: document.getElementById("exportWordBtn"),
   addPasteBtn: document.getElementById("addPasteBtn"),
   pasteDialog: document.getElementById("pasteDialog"),
   pasteName: document.getElementById("pasteName"),
@@ -65,14 +66,8 @@ els.resetBtn.addEventListener("click", () => {
   saveAndRender();
 });
 
-els.exportCsvBtn.addEventListener("click", () => {
-  const rows = computeCapabilityRows();
-  const csvRows = [
-    ["Risk", "ID", "Pillar", "Capability", "Required", "Current", "Gap", "Source coverage"],
-    ...rows.map((row) => [row.riskLabel, row.id, row.pillar, row.capability, row.required, formatNumber(row.current), formatNumber(row.gap), row.coverage]),
-  ];
-  download("skills-gap-export.csv", csvRows.map(toCsvLine).join("\n"));
-});
+els.exportExcelBtn.addEventListener("click", exportExcelReport);
+els.exportWordBtn.addEventListener("click", exportWordReport);
 
 els.addPasteBtn.addEventListener("click", () => els.pasteDialog.showModal());
 
@@ -464,11 +459,142 @@ function toCsvLine(values) {
 }
 
 function download(filename, content) {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+  const blob = content instanceof Blob ? content : new Blob([content], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function exportExcelReport() {
+  const rows = computeCapabilityRows();
+  const pillarRows = Object.entries(groupBy(rows, "pillar")).map(([pillar, items]) => {
+    const current = average(items.map((item) => item.current).filter((value) => value !== null));
+    const required = average(items.map((item) => item.required));
+    return {
+      Pillar: pillar,
+      "Required avg": round(required),
+      "Current avg": round(current),
+      Gap: round(current === null ? null : current - required),
+      "Critical items": items.filter((item) => item.risk === "critical").length,
+      "Gap items": items.filter((item) => item.risk === "critical" || item.risk === "gap").length,
+    };
+  });
+  const capabilityRows = rows.map((row) => ({
+    Risk: row.riskLabel,
+    ID: row.id,
+    Pillar: row.pillar,
+    Capability: row.capability,
+    Question: row.question,
+    "Required level": row.required,
+    Weight: row.weight,
+    "Current score": round(row.current),
+    Gap: round(row.gap),
+    "Source coverage": row.coverage,
+    "Gap type": row.gapType,
+  }));
+  const participantRows = [];
+  for (const participant of activeParticipants()) {
+    for (const criterion of state.criteria) {
+      const combined = combinedScore(participant, criterion.id);
+      participantRows.push({
+        Participant: participant.name,
+        ID: criterion.id,
+        Pillar: criterion.pillar,
+        Capability: criterion.capability,
+        "Self score": scoreValue(participant.selfScores, criterion.id),
+        "Manager score": scoreValue(participant.managerScores, criterion.id),
+        "Combined score": round(combined),
+        "Required level": criterion.required,
+        Gap: round(combined === null ? null : combined - criterion.required),
+        Evidence: participant.evidence?.[criterion.id] || "",
+      });
+    }
+  }
+  const summary = buildNarrativeSummary(rows);
+  const summaryRows = [
+    { Metric: "Active participants", Value: activeParticipants().length },
+    { Metric: "Capabilities assessed", Value: state.criteria.length },
+    { Metric: "Self assessment weight", Value: `${Math.round(state.settings.selfWeight * 100)}%` },
+    { Metric: "Manager assessment weight", Value: `${Math.round(state.settings.managerWeight * 100)}%` },
+    { Metric: "Average gap", Value: formatSigned(summary.avgGap) },
+    { Metric: "Critical capability gaps", Value: summary.criticalCount },
+    { Metric: "Capabilities below requirement", Value: summary.gapCount },
+    { Metric: "Strongest category", Value: summary.strongestPillar },
+    { Metric: "Weakest category", Value: summary.weakestPillar },
+  ];
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summaryRows), "Executive Summary");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(pillarRows), "Category Summary");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(capabilityRows), "Capability Gaps");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(participantRows), "Participant Matrix");
+  XLSX.writeFile(workbook, "DPW_Automation_Skills_Gap_Report.xlsx");
+}
+
+function exportWordReport() {
+  const rows = computeCapabilityRows();
+  const summary = buildNarrativeSummary(rows);
+  const pillarRows = Object.entries(groupBy(rows, "pillar")).map(([pillar, items]) => {
+    const current = average(items.map((item) => item.current).filter((value) => value !== null));
+    const required = average(items.map((item) => item.required));
+    return { pillar, current, required, gap: current === null ? null : current - required, critical: items.filter((item) => item.risk === "critical").length };
+  }).sort((a, b) => a.gap - b.gap);
+  const criticalRows = rows.filter((row) => row.risk === "critical").sort((a, b) => a.gap - b.gap).slice(0, 15);
+  const participantSections = activeParticipants().map((participant) => {
+    const detailRows = state.criteria.map((criterion) => {
+      const combined = combinedScore(participant, criterion.id);
+      return `<tr><td>${escapeHtml(criterion.id)}</td><td>${escapeHtml(criterion.pillar)}</td><td>${escapeHtml(criterion.capability)}</td><td>${formatNumber(scoreValue(participant.selfScores, criterion.id))}</td><td>${formatNumber(scoreValue(participant.managerScores, criterion.id))}</td><td>${formatNumber(combined)}</td><td>${formatSigned(combined === null ? null : combined - criterion.required)}</td></tr>`;
+    }).join("");
+    return `<h2>${escapeHtml(participant.name)}</h2><table><thead><tr><th>ID</th><th>Category</th><th>Capability</th><th>Self</th><th>Manager</th><th>Combined</th><th>Gap</th></tr></thead><tbody>${detailRows}</tbody></table>`;
+  }).join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>DPW Automation Skills Gap Report</title><style>
+    body{font-family:Calibri,Arial,sans-serif;color:#1e2933} h1{color:#006b5f} h2{color:#2454a6;margin-top:24px}
+    table{border-collapse:collapse;width:100%;margin:10px 0 20px} th,td{border:1px solid #cfd8e3;padding:6px 8px;font-size:10.5pt;vertical-align:top} th{background:#eef3f8}
+    .metric{font-weight:bold}.critical{color:#c7352b;font-weight:bold}.gap{color:#b7791f;font-weight:bold}
+  </style></head><body>
+    <h1>DPW Automation & Innovation Skills Gap Analysis</h1>
+    <h2>Executive Summary</h2>
+    <p>This report combines available self-assessment and manager-assessment data. Current weighting is ${Math.round(state.settings.selfWeight * 100)}% self assessment and ${Math.round(state.settings.managerWeight * 100)}% manager assessment.</p>
+    <table><tbody>
+      <tr><td class="metric">Active participants</td><td>${activeParticipants().length}</td></tr>
+      <tr><td class="metric">Capabilities assessed</td><td>${state.criteria.length}</td></tr>
+      <tr><td class="metric">Average gap</td><td>${formatSigned(summary.avgGap)}</td></tr>
+      <tr><td class="metric">Critical capability gaps</td><td>${summary.criticalCount}</td></tr>
+      <tr><td class="metric">Capabilities below requirement</td><td>${summary.gapCount}</td></tr>
+      <tr><td class="metric">Strongest category</td><td>${escapeHtml(summary.strongestPillar)}</td></tr>
+      <tr><td class="metric">Weakest category</td><td>${escapeHtml(summary.weakestPillar)}</td></tr>
+    </tbody></table>
+    <h2>Category Summary</h2>
+    <table><thead><tr><th>Category</th><th>Required</th><th>Current</th><th>Gap</th><th>Critical items</th></tr></thead><tbody>
+      ${pillarRows.map((row) => `<tr><td>${escapeHtml(row.pillar)}</td><td>${formatNumber(row.required)}</td><td>${formatNumber(row.current)}</td><td class="${row.gap <= -1 ? "critical" : row.gap < 0 ? "gap" : ""}">${formatSigned(row.gap)}</td><td>${row.critical}</td></tr>`).join("")}
+    </tbody></table>
+    <h2>Priority Capability Gaps</h2>
+    <table><thead><tr><th>ID</th><th>Category</th><th>Capability</th><th>Required</th><th>Current</th><th>Gap</th><th>Coverage</th></tr></thead><tbody>
+      ${criticalRows.map((row) => `<tr><td>${escapeHtml(row.id)}</td><td>${escapeHtml(row.pillar)}</td><td>${escapeHtml(row.capability)}</td><td>${formatNumber(row.required)}</td><td>${formatNumber(row.current)}</td><td class="critical">${formatSigned(row.gap)}</td><td>${escapeHtml(row.coverage)}</td></tr>`).join("")}
+    </tbody></table>
+    <h2>Participant Detail</h2>
+    ${participantSections}
+  </body></html>`;
+  download("DPW_Automation_Skills_Gap_Report.doc", new Blob([html], { type: "application/msword;charset=utf-8" }));
+}
+
+function buildNarrativeSummary(rows) {
+  const pillarRows = Object.entries(groupBy(rows, "pillar")).map(([pillar, items]) => {
+    const current = average(items.map((item) => item.current).filter((value) => value !== null));
+    const required = average(items.map((item) => item.required));
+    return { pillar, gap: current === null ? null : current - required };
+  }).filter((row) => row.gap !== null).sort((a, b) => a.gap - b.gap);
+  return {
+    avgGap: average(rows.filter((row) => row.current !== null).map((row) => row.gap)),
+    criticalCount: rows.filter((row) => row.risk === "critical").length,
+    gapCount: rows.filter((row) => row.risk === "critical" || row.risk === "gap").length,
+    weakestPillar: pillarRows[0]?.pillar || "n/a",
+    strongestPillar: pillarRows[pillarRows.length - 1]?.pillar || "n/a",
+  };
+}
+
+function round(value) {
+  return Number.isFinite(value) ? Math.round(value * 100) / 100 : "";
 }
