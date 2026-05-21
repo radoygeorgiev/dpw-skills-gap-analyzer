@@ -8,131 +8,368 @@
   </head>
   <body>
     <header class="topbar">
-      <div>
-        <p class="eyebrow">Automation & Innovation</p>
-        <h1>Skills Gap Analyzer</h1>
+      <div class="topbar-branding">
+        <p class="eyebrow">Global Automation & Innovation</p>
+        <h1>Team Capability & Skills Gap Analyzer</h1>
       </div>
       <div class="actions">
         <label class="file-button">
-          Import Excel
+          📥 Import Excel Sheets
           <input id="fileInput" type="file" accept=".xlsx,.xls" multiple />
         </label>
-        <button id="exportExcelBtn" type="button">Export Excel report</button>
-        <button id="exportWordBtn" type="button">Export Word report</button>
-        <button id="resetBtn" type="button" class="ghost">Reset sample data</button>
+        <button id="exportExcelBtn" type="button" class="primary">📊 Export Consolidated Excel</button>
+        <button id="exportWordBtn" type="button" class="secondary">📝 Export Word Briefing</button>
+        <button id="resetBtn" type="button" class="ghost">🔄 Reset Sample Data</button>
       </div>
     </header>
 
-    <main>
-      <section class="control-band">
-        <div class="control">
-          <label for="selfWeight">Self assessment weight</label>
-          <div class="slider-row">
-            <input id="selfWeight" type="range" min="0" max="100" value="40" />
-            <strong id="selfWeightValue">40%</strong>
-          </div>
-        </div>
-        <div class="control">
-          <label for="managerWeight">Manager assessment weight</label>
-          <div class="slider-row">
-            <input id="managerWeight" type="range" min="0" max="100" value="60" />
-            <strong id="managerWeightValue">60%</strong>
-          </div>
-        </div>
-        <div class="control">
-          <label for="pillarFilter">Pillar filter</label>
-          <select id="pillarFilter"></select>
-        </div>
-        <div class="control">
-          <label for="riskFilter">Risk filter</label>
-          <select id="riskFilter">
-            <option value="all">All items</option>
-            <option value="critical">Critical gaps</option>
-            <option value="gap">Gaps only</option>
-            <option value="strong">Adequate / strong</option>
-          </select>
-        </div>
-      </section>
+    <nav class="nav-tabs" id="navTabs">
+      <button class="tab-btn active" data-tab="tab-dashboard">📊 Dashboard</button>
+      <button class="tab-btn" data-tab="tab-matrix">✏️ Interactive Matrix</button>
+      <button class="tab-btn" data-tab="tab-geo">🌍 Geo Workload</button>
+      <button class="tab-btn" data-tab="tab-import">📥 Data Importer</button>
+    </nav>
 
-      <section class="kpis" id="kpis"></section>
+    <main class="workspace">
+      <!-- KPI Row (visible across main views) -->
+      <section class="kpis-row" id="kpisRow"></section>
 
-      <section class="layout">
-        <aside class="panel">
+      <!-- TAB 1: EXECUTIVE DASHBOARD -->
+      <section id="tab-dashboard" class="tab-content active">
+        <div class="dashboard-grid">
+          <!-- Left Sidebar Controls -->
+          <aside class="control-panel">
+            <div class="panel">
+              <h2>Dashboard Controls</h2>
+              <div class="control-group" style="margin-top: 1rem;">
+                <label>Blended Assessment Weighting</label>
+                <div class="slider-wrapper">
+                  <div class="slider-info">
+                    <span>Self Score Weight</span>
+                    <span id="selfWeightValue">50%</span>
+                  </div>
+                  <input id="selfWeight" type="range" min="0" max="100" value="50" />
+                </div>
+                <div class="slider-wrapper" style="margin-top: 0.5rem;">
+                  <div class="slider-info">
+                    <span>Manager Score Weight</span>
+                    <span id="managerWeightValue">50%</span>
+                  </div>
+                  <input id="managerWeight" type="range" min="0" max="100" value="50" />
+                </div>
+              </div>
+
+              <div class="control-group" style="margin-top: 1rem;">
+                <label for="pillarFilter">Strategic Pillar Filter</label>
+                <select id="pillarFilter"></select>
+              </div>
+
+              <div class="control-group" style="margin-top: 1rem;">
+                <label for="riskFilter">Gap Risk Filter</label>
+                <select id="riskFilter">
+                  <option value="all">All items</option>
+                  <option value="critical">Critical Gaps Only (Gap &le; -1.0)</option>
+                  <option value="gap">Any Gaps (Gap &lt; 0)</option>
+                  <option value="strong">Adequate / Strong (Gap &ge; 0)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="panel">
+              <h2>Active Team Members</h2>
+              <div id="participantList" class="participants-section" style="margin-top: 1rem;"></div>
+              <p class="hint" style="margin-top: 0.75rem;">Toggle checkboxes to instantly recalculate average gaps. Add scores on the Interactive Matrix or paste them in the Data Importer.</p>
+            </div>
+          </aside>
+
+          <!-- Right Content: Radar & Pillar Status -->
+          <section style="display: flex; flex-direction: column; gap: 1.5rem;">
+            <div class="panel" style="margin-bottom: 0;">
+              <h2>Capability Portfolio Radar</h2>
+              <p class="meta" style="margin-bottom: 1rem;">Averages the blended self-assessments and manager evaluations of all selected active team members.</p>
+              <div class="chart-container" id="radarContainer">
+                <!-- SVG Radar Chart gets injected here -->
+              </div>
+            </div>
+
+            <div class="panel">
+              <h2>Strategic Pillar Summary</h2>
+              <div id="pillarGrid" class="pillars-grid"></div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Capability Gap Table -->
+        <section class="panel" style="margin-top: 1.5rem;">
           <div class="panel-head">
-            <h2>Participants</h2>
-            <button id="addPasteBtn" type="button" class="ghost">Paste data</button>
+            <h2>Detailed Capabilities & Blended Gaps</h2>
+            <span class="meta">Blended Score = (Self * Weight + Manager * Weight) / Combined Weight.</span>
           </div>
-          <div id="participantList" class="participant-list"></div>
-          <p class="hint">Import completed individual templates or the manager workbook. You can remove any participant without touching the source files.</p>
-        </aside>
+          <div class="matrix-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>ID</th>
+                  <th>Strategic Pillar</th>
+                  <th>Capability Detail</th>
+                  <th>Req</th>
+                  <th>Current</th>
+                  <th>Gap</th>
+                  <th>Source Coverage</th>
+                </tr>
+              </thead>
+              <tbody id="gapRows"></tbody>
+            </table>
+          </div>
+        </section>
 
-        <section class="panel wide">
+        <!-- Dynamic Evidence list -->
+        <section class="panel">
           <div class="panel-head">
-            <h2>Pillar View</h2>
-            <span id="sourceSummary" class="meta"></span>
+            <h2>Observed Capability Evidence</h2>
+            <span class="meta">Proof examples extracted from self-assessments for the weakest capabilities.</span>
           </div>
-          <div id="pillarGrid" class="pillar-grid"></div>
+          <div class="pillars-grid" id="evidenceList"></div>
         </section>
       </section>
 
-      <section class="panel">
-        <div class="panel-head">
-          <h2>Capability Gaps</h2>
-          <span class="meta">Combined score uses whichever sources are available for each person.</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Risk</th>
-                <th>ID</th>
-                <th>Pillar</th>
-                <th>Capability</th>
-                <th>Required</th>
-                <th>Current</th>
-                <th>Gap</th>
-                <th>Source coverage</th>
-              </tr>
-            </thead>
-            <tbody id="gapRows"></tbody>
-          </table>
+      <!-- TAB 2: INTERACTIVE MATRIX GRID -->
+      <section id="tab-matrix" class="tab-content">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Interactive Score Matrix & Overrides</h2>
+              <p class="meta">Directly modify scores or evidence below. Select a participant or modify all columns in real-time. Changes are auto-saved locally.</p>
+            </div>
+             <div style="display: flex; gap: 0.5rem; align-items: center;">
+               <button id="bulkPasteBtn" type="button" class="secondary">📋 Bulk Paste Excel Data</button>
+               <button id="addParticipantBtn" type="button" class="primary">➕ Add Team Member</button>
+             </div>
+          </div>
+
+          <div class="matrix-wrap">
+            <table class="matrix-table">
+              <colgroup id="matrixColgroup"></colgroup>
+              <thead>
+                <tr id="matrixHeader">
+                  <!-- Injected dynamically in app.js -->
+                </tr>
+              </thead>
+              <tbody id="matrixRows">
+                <!-- Injected dynamically in app.js -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
-      <section class="panel">
-        <div class="panel-head">
-          <h2>Evidence</h2>
-          <span class="meta">Self-assessment examples imported from individual templates.</span>
+      <!-- TAB 3: GEOGRAPHIC & CAPACITY ANALYSIS -->
+      <section id="tab-geo" class="tab-content">
+        <div class="panel">
+          <h2>Regional Demand & Capacity Balance</h2>
+          <p class="meta" style="margin-bottom: 1.5rem;">Comparing regional workload concentration, travel frequency, and community leadership needs for 2026/27. This view compiles objective current-state parameters from the `05_Geo_Coverage` sheet.</p>
+          
+          <div class="geo-panel-grid">
+            <article class="geo-card-new">
+              <header class="geo-card-header">
+                <h3>Europe</h3>
+                <span class="risk-pill critical">High Workload</span>
+              </header>
+              <div class="geo-card-body">
+                <p><strong>Expected Mandate Demand:</strong> High: largest expected community, many sites, brownfield potential, library adoption, workshops, site visits.</p>
+                <p><strong>Current Dedicated Coverage:</strong> To be assessed</p>
+                <p><strong>Community Intensity:</strong> High</p>
+                <p><strong>Travel Burden:</strong> High</p>
+                <p class="geo-risk-box"><strong>Risk if Under-covered:</strong> Regional teams continue one-off automation decisions; limited standardization; slow library adoption; global lead remains bottleneck.</p>
+              </div>
+            </article>
+
+            <article class="geo-card-new">
+              <header class="geo-card-header">
+                <h3>APAC / Oceania</h3>
+                <span class="risk-pill strong">Low Workload</span>
+              </header>
+              <div class="geo-card-body">
+                <p><strong>Expected Mandate Demand:</strong> Lower relative demand based on current workload and opportunity pull.</p>
+                <p><strong>Current Dedicated Coverage:</strong> Existing APAC role under review</p>
+                <p><strong>Community Intensity:</strong> Medium/Low</p>
+                <p><strong>Travel Burden:</strong> Medium</p>
+                <p class="geo-risk-box"><strong>Risk if Under-covered:</strong> Dedicated coverage may not be justified if demand remains low versus Europe.</p>
+              </div>
+            </article>
+
+            <article class="geo-card-new">
+              <header class="geo-card-header">
+                <h3>Americas</h3>
+                <span class="risk-pill gap">Medium Workload</span>
+              </header>
+              <div class="geo-card-body">
+                <p><strong>Expected Mandate Demand:</strong> Important but already has regional team presence and specific US support.</p>
+                <p><strong>Current Dedicated Coverage:</strong> Existing Americas coverage</p>
+                <p><strong>Community Intensity:</strong> Medium</p>
+                <p><strong>Travel Burden:</strong> Medium</p>
+                <p class="geo-risk-box"><strong>Risk if Under-covered:</strong> Duplication if global and regional roles overlap without clear standards.</p>
+              </div>
+            </article>
+
+            <article class="geo-card-new">
+              <header class="geo-card-header">
+                <h3>Global</h3>
+                <span class="risk-pill critical">High Workload</span>
+              </header>
+              <div class="geo-card-body">
+                <p><strong>Expected Mandate Demand:</strong> Needed for standards, playbooks, vendor alignment, and governance.</p>
+                <p><strong>Current Dedicated Coverage:</strong> Global lead plus team</p>
+                <p><strong>Community Intensity:</strong> High</p>
+                <p><strong>Travel Burden:</strong> Selective</p>
+                <p class="geo-risk-box"><strong>Risk if Under-covered:</strong> Without regional community ownership, global remains too execution-heavy and reactive.</p>
+              </div>
+            </article>
+          </div>
+
+          <div style="margin-top: 2rem;">
+            <h2>Detailed Geographical Metrics Table</h2>
+            <div class="matrix-wrap" style="margin-top: 1rem;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Region</th>
+                    <th>Expected Mandate Demand</th>
+                    <th>Current Coverage</th>
+                    <th>Community Intensity</th>
+                    <th>Travel Burden</th>
+                    <th>Risk if Under-covered</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Europe</strong></td>
+                    <td>High: largest expected community, many sites, brownfield potential, library adoption, workshops, site visits.</td>
+                    <td>To be assessed</td>
+                    <td><span class="risk-pill critical">High</span></td>
+                    <td><span class="risk-pill critical">High</span></td>
+                    <td>Regional teams continue one-off automation decisions; limited standardization; slow library adoption; global lead remains bottleneck.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>APAC / Oceania</strong></td>
+                    <td>Lower relative demand based on current workload and opportunity pull.</td>
+                    <td>Existing APAC role under review</td>
+                    <td><span class="risk-pill strong">Low</span></td>
+                    <td><span class="risk-pill gap">Medium</span></td>
+                    <td>Dedicated coverage may not be justified if demand remains low versus Europe.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Americas</strong></td>
+                    <td>Important but already has regional team presence and specific US support.</td>
+                    <td>Existing Americas coverage</td>
+                    <td><span class="risk-pill gap">Medium</span></td>
+                    <td><span class="risk-pill gap">Medium</span></td>
+                    <td>Duplication if global and regional roles overlap without clear standards.</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Global</strong></td>
+                    <td>Needed for standards, playbooks, vendor alignment, and governance.</td>
+                    <td>Global lead plus team</td>
+                    <td><span class="risk-pill critical">High</span></td>
+                    <td><span class="risk-pill gap">Selective</span></td>
+                    <td>Without regional community ownership, global remains too execution-heavy and reactive.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-        <div id="evidenceList" class="evidence-list"></div>
+      </section>
+
+      <!-- TAB 7: DATA IMPORTER & OVERRIDES -->
+      <section id="tab-import" class="tab-content">
+        <div class="panel">
+          <h2>Import or Paste Team Assessment Data</h2>
+          <p class="meta" style="margin-bottom: 1.5rem;">Use this area to upload individual completed Excel files, or paste tab-delimited columns directly copied from your team's feedback workbooks.</p>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+            <div style="border: 2px dashed var(--line-color); border-radius: var(--radius-lg); padding: 3rem; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; background: var(--bg-main);">
+              <span style="font-size: 3rem;">📥</span>
+              <h3>Drag & Drop Excel Sheets</h3>
+              <p class="meta">Select multiple individual self-assessments or the main manager workbook to merge immediately.</p>
+              <label class="file-button" style="margin-top: 1rem;">
+                Select Files
+                <input id="importFileBtn" type="file" accept=".xlsx,.xls" multiple />
+              </label>
+            </div>
+
+            <div>
+              <div class="panel-head" style="margin-bottom: 0.5rem;">
+                <h2>Paste Tabular Rows</h2>
+              </div>
+              <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                <input id="pasteName" type="text" placeholder="Participant Name (e.g. Lawrence)" style="flex: 1;" />
+                <select id="pasteType" style="width: 160px;">
+                  <option value="self">Self Scores</option>
+                  <option value="manager">Manager Scores</option>
+                </select>
+              </div>
+              <textarea id="pasteText" rows="10" placeholder="Copy rows from Excel containing columns ID and Score, and paste them here. ID must match S01, C01, etc." style="margin-bottom: 1rem; font-family: monospace; font-size: 0.8rem;"></textarea>
+              <button id="applyPasteBtn" type="button" class="primary" style="width: 100%;">Process and Integrate Row Data</button>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
 
-    <dialog id="pasteDialog">
-      <form method="dialog" class="paste-form">
-        <div class="panel-head">
-          <h2>Paste Assessment Data</h2>
-          <button value="cancel" type="submit" class="icon-button">x</button>
+    <div class="clipboard-alert" id="clipboardAlert">
+      Content successfully copied to clipboard!
+    </div>
+
+    <!-- Dialog to add participant -->
+    <dialog id="addParticipantDialog">
+      <form method="dialog" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;">
+        <h2 style="font-family: var(--font-display); color: var(--secondary);">Add New Team Member</h2>
+        <div class="control-group">
+          <label for="newPartName">Name</label>
+          <input id="newPartName" type="text" placeholder="E.g., Raffael" required />
         </div>
-        <label>
-          Participant name
-          <input id="pasteName" type="text" placeholder="Example: New team member" />
-        </label>
-        <label>
-          Data type
-          <select id="pasteType">
-            <option value="self">Self assessment</option>
-            <option value="manager">Manager assessment</option>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <button type="submit" value="cancel" class="ghost">Cancel</button>
+          <button id="confirmAddParticipantBtn" type="button" class="primary">Add Member</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- Dialog to bulk paste excel data -->
+    <dialog id="bulkPasteDialog">
+      <form method="dialog" style="padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; max-width: 600px; width: 90vw;">
+        <h2 style="font-family: var(--font-display); color: var(--secondary); display: flex; align-items: center; gap: 0.5rem;">📋 Bulk Paste Excel Data</h2>
+        <p class="meta" style="margin-bottom: 0.5rem;">Select all rows of your team member's self-assessment or manager sheet in Excel, copy them (Ctrl+C), and paste them below. The tool will auto-detect ID, Score, and Evidence columns.</p>
+        
+        <div class="control-group">
+          <label for="bulkPastePartSelect">Team Member</label>
+          <select id="bulkPastePartSelect" style="width: 100%;"></select>
+        </div>
+        
+        <div class="control-group" id="bulkPasteNewNameGroup" style="display: none;">
+          <label for="bulkPasteNewName">New Team Member Name</label>
+          <input id="bulkPasteNewName" type="text" placeholder="E.g., Raffael" />
+        </div>
+        
+        <div class="control-group">
+          <label for="bulkPasteType">Score Type</label>
+          <select id="bulkPasteType" style="width: 100%;">
+            <option value="self">Self Scores & Evidence</option>
+            <option value="manager">Manager Scores</option>
           </select>
-        </label>
-        <label>
-          Pasted rows from Excel
-          <textarea id="pasteText" rows="12" placeholder="Paste rows containing ID and score columns. Headers are optional if the first columns match the template."></textarea>
-        </label>
-        <menu>
-          <button value="cancel" type="submit" class="ghost">Cancel</button>
-          <button id="applyPasteBtn" value="default" type="button">Add / update participant</button>
-        </menu>
+        </div>
+        
+        <div class="control-group">
+          <label for="bulkPasteTextArea">Paste Clipboard Data Here (Tab-Delimited)</label>
+          <textarea id="bulkPasteTextArea" rows="10" placeholder="Paste copied spreadsheet cells here... (e.g. containing columns: ID, Pillar, Capability, ..., Score, Evidence)" style="font-family: monospace; font-size: 0.8rem; height: 160px;"></textarea>
+        </div>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <button type="submit" value="cancel" class="ghost">Cancel</button>
+          <button id="confirmBulkPasteBtn" type="button" class="primary">Integrate Data</button>
+        </div>
       </form>
     </dialog>
 
