@@ -1,0 +1,17 @@
+{
+  "name": "dpw-skills-gap-analyzer",
+  "version": "1.0.0",
+  "description": "Local interactive skills gap analyzer for DPW Automation & Innovation workbook inputs.",
+  "main": "app.js",
+  "scripts": {
+    "start": "vite --host 127.0.0.1",
+    "check": "node --check app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "vite": "^5.4.21",
+    "xlsx": "^0.18.5"
+  }
+}

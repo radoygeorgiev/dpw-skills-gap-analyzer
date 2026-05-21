@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DPW Automation Skills Gap Analyzer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Automation & Innovation</p>
+        <h1>Skills Gap Analyzer</h1>
+      </div>
+      <div class="actions">
+        <label class="file-button">
+          Import Excel
+          <input id="fileInput" type="file" accept=".xlsx,.xls" multiple />
+        </label>
+        <button id="exportCsvBtn" type="button">Export gaps CSV</button>
+        <button id="resetBtn" type="button" class="ghost">Reset sample data</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="control-band">
+        <div class="control">
+          <label for="selfWeight">Self assessment weight</label>
+          <div class="slider-row">
+            <input id="selfWeight" type="range" min="0" max="100" value="40" />
+            <strong id="selfWeightValue">40%</strong>
+          </div>
+        </div>
+        <div class="control">
+          <label for="managerWeight">Manager assessment weight</label>
+          <div class="slider-row">
+            <input id="managerWeight" type="range" min="0" max="100" value="60" />
+            <strong id="managerWeightValue">60%</strong>
+          </div>
+        </div>
+        <div class="control">
+          <label for="pillarFilter">Pillar filter</label>
+          <select id="pillarFilter"></select>
+        </div>
+        <div class="control">
+          <label for="riskFilter">Risk filter</label>
+          <select id="riskFilter">
+            <option value="all">All items</option>
+            <option value="critical">Critical gaps</option>
+            <option value="gap">Gaps only</option>
+            <option value="strong">Adequate / strong</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="kpis" id="kpis"></section>
+
+      <section class="layout">
+        <aside class="panel">
+          <div class="panel-head">
+            <h2>Participants</h2>
+            <button id="addPasteBtn" type="button" class="ghost">Paste data</button>
+          </div>
+          <div id="participantList" class="participant-list"></div>
+          <p class="hint">Import completed individual templates or the manager workbook. You can remove any participant without touching the source files.</p>
+        </aside>
+
+        <section class="panel wide">
+          <div class="panel-head">
+            <h2>Pillar View</h2>
+            <span id="sourceSummary" class="meta"></span>
+          </div>
+          <div id="pillarGrid" class="pillar-grid"></div>
+        </section>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Capability Gaps</h2>
+          <span class="meta">Combined score uses whichever sources are available for each person.</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Risk</th>
+                <th>ID</th>
+                <th>Pillar</th>
+                <th>Capability</th>
+                <th>Required</th>
+                <th>Current</th>
+                <th>Gap</th>
+                <th>Source coverage</th>
+              </tr>
+            </thead>
+            <tbody id="gapRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Evidence</h2>
+          <span class="meta">Self-assessment examples imported from individual templates.</span>
+        </div>
+        <div id="evidenceList" class="evidence-list"></div>
+      </section>
+    </main>
+
+    <dialog id="pasteDialog">
+      <form method="dialog" class="paste-form">
+        <div class="panel-head">
+          <h2>Paste Assessment Data</h2>
+          <button value="cancel" type="submit" class="icon-button">x</button>
+        </div>
+        <label>
+          Participant name
+          <input id="pasteName" type="text" placeholder="Example: New team member" />
+        </label>
+        <label>
+          Data type
+          <select id="pasteType">
+            <option value="self">Self assessment</option>
+            <option value="manager">Manager assessment</option>
+          </select>
+        </label>
+        <label>
+          Pasted rows from Excel
+          <textarea id="pasteText" rows="12" placeholder="Paste rows containing ID and score columns. Headers are optional if the first columns match the template."></textarea>
+        </label>
+        <menu>
+          <button value="cancel" type="submit" class="ghost">Cancel</button>
+          <button id="applyPasteBtn" value="default" type="button">Add / update participant</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="./node_modules/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="./seed-data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
