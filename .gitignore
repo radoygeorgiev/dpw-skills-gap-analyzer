@@ -2,3 +2,4 @@ node_modules/
 *.log
 *.xlsx
 dpw-gap-analyzer-screenshot.png
+reports/
