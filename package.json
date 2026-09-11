@@ -4,7 +4,7 @@
   "description": "Local interactive skills gap analyzer for DPW Automation & Innovation workbook inputs.",
   "main": "app.js",
   "scripts": {
-    "start": "vite --host 127.0.0.1",
+    "start": "python scripts/start_vite.py",
     "check": "node --check app.js"
   },
   "keywords": [],
